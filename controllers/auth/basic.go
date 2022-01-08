@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/jchen42703/crud/internal/templates"
@@ -47,27 +46,32 @@ func SignUp(db *sql.DB) echo.HandlerFunc {
 			return c.JSON(http.StatusInternalServerError, templates.NewError(err))
 		}
 
-		return c.JSON(http.StatusCreated, nil)
+		return c.JSON(http.StatusCreated, "registered successfully")
 	}
+}
+
+type LoginReq struct {
+	Credentials
+
+	RememberMe bool `json:"rememberMe"`
 }
 
 func Login(db *sql.DB, cache redis.Conn) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		// Parse and decode the request body into a new `Credentials` instance
-		creds := &Credentials{}
-		if err := c.Validate(creds); err != nil {
+		req := &LoginReq{}
+		if err := c.Validate(req); err != nil {
 			return c.JSON(http.StatusUnprocessableEntity, templates.NewError(err))
 		}
 
-		err := json.NewDecoder(c.Request().Body).Decode(creds)
+		err := json.NewDecoder(c.Request().Body).Decode(req)
 		if err != nil {
 			// If there is something wrong with the request body, return a 400 status
-			// .WriteHeader(http.StatusBadRequest)
 			return c.JSON(http.StatusBadRequest, templates.NewError(err))
 		}
 
 		// Get the existing entry present in the database for the given username
-		result := db.QueryRow("select password from users where username=$1", creds.Username)
+		result := db.QueryRow("select password from users where username=$1", req.Username)
 		if err != nil {
 			// If there is an issue with the database, return a 500 error
 			return c.JSON(http.StatusInternalServerError, templates.NewError(err))
@@ -87,7 +91,7 @@ func Login(db *sql.DB, cache redis.Conn) echo.HandlerFunc {
 		}
 
 		// Compare the stored hashed password, with the hashed version of the password that was received
-		if err = bcrypt.CompareHashAndPassword([]byte(storedCreds.Password), []byte(creds.Password)); err != nil {
+		if err = bcrypt.CompareHashAndPassword([]byte(storedCreds.Password), []byte(req.Password)); err != nil {
 			// If the two passwords don't match, return a 401 status
 			return c.JSON(http.StatusUnauthorized, templates.NewError(err))
 		}
@@ -97,8 +101,12 @@ func Login(db *sql.DB, cache redis.Conn) echo.HandlerFunc {
 		// Create a new random session token
 		sessionToken := uuid.NewV4().String()
 		// Set the token in the cache, along with the user whom it represents
-		// The token has an expiry time of 120 seconds
-		_, err = cache.Do("SETEX", sessionToken, "120", creds.Username)
+		// The token has an expiry time of 1 day
+		// NOT THE SAFEST because if rememberMe == false and cookie deleted when browser session closes,
+		// the session cookie is still in the cache, so technically the same session cookie is still usable.
+		// Alternative: When making the authentication middlware, change the cache TTL to something low and refresh
+		// the cache key when needed
+		_, err = cache.Do("SETEX", sessionToken, templates.DayInSeconds(), req.Username)
 		if err != nil {
 			// If there is an error in setting the cache, return an internal server error
 			return c.JSON(http.StatusInternalServerError, templates.NewError(err))
@@ -106,12 +114,17 @@ func Login(db *sql.DB, cache redis.Conn) echo.HandlerFunc {
 
 		// Finally, we set the client cookie for "session_token" as the session token we just generated
 		// we also set an expiry time of 120 seconds, the same as the cache
-		c.SetCookie(&http.Cookie{
+		sessionCookie := &http.Cookie{
 			Name:     "session_token",
 			Value:    sessionToken,
-			Expires:  time.Now().Add(120 * time.Second),
 			HttpOnly: true,
-		})
+		}
+
+		if req.RememberMe {
+			sessionCookie.Expires = templates.DayFromNow()
+		}
+
+		c.SetCookie(sessionCookie)
 
 		return c.String(http.StatusOK, "logged in successfully")
 	}
