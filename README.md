@@ -11,6 +11,7 @@ Echo CRUD Template with:
 - [ ] HTTPS & HTTP 2
 - [ ] Grouped Paths
 - [ ] Basic Authentication
+  - [ ] Email Verification
   - [ ] Postgres
   - [ ] Redis
 - [ ] Metrics with Prometheus

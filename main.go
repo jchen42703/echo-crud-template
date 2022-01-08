@@ -1,8 +1,12 @@
 package main
 
 import (
+	"net/http"
+
+	"github.com/jchen42703/crud/controllers/auth"
 	"github.com/jchen42703/crud/db"
 	"github.com/jchen42703/crud/router"
+	"github.com/labstack/echo/v4"
 
 	echoSwagger "github.com/swaggo/echo-swagger"
 )
@@ -28,13 +32,18 @@ func main() {
 
 	r.GET("/swagger/*", echoSwagger.WrapHandler)
 
-	// v1 := r.Group("/api")
-
 	connections, err := db.NewConnections()
 	if err != nil {
 		r.Logger.Fatalf("failed to initialize db or cache: %s", err)
 	}
 	defer connections.DB.Close()
+
+	v1 := r.Group("/api")
+	// temp for testing
+	v1.GET("", func(c echo.Context) error {
+		return c.String(http.StatusOK, "Hello, World!")
+	})
+	auth.RegisterRoutes(v1, connections)
 
 	// us := store.NewUserStore(d)
 	// as := store.NewArticleStore(d)
