@@ -9,13 +9,15 @@ Based on https://github.com/xesina/golang-echo-realworld-example-app.
 Echo CRUD Template with:
 
 - [ ] HTTPS & HTTP 2
-- [ ] Grouped Paths
+- [x] Grouped Paths
 - [ ] Basic Authentication
   - [ ] Email Verification
-  - [ ] Postgres
-  - [ ] Redis
+  - [x] Remember Me
+  - [x] Postgres
+  - [x] Redis
 - [ ] Metrics with Prometheus
-- [ ] CORS
+- [x] CORS
+- [x] CSRF Protection
 - [ ] Deploy with Docker
 - [ ] Automatic documentation with swagger
 - [ ] Testing
