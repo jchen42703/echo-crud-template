@@ -9,6 +9,8 @@ func RegisterRoutes(g *echo.Group, conn *db.Connections) {
 	authGroup := g.Group("/auth")
 	authGroup.POST("/signup", SignUp(conn.DB))
 	authGroup.POST("/login", Login(conn.DB, conn.Cache))
+	authGroup.POST("/logout", Logout(conn.Cache))
+
 	// jwtMiddleware := middleware.JWT(utils.JWTSecret)
 	// guestUsers := v1.Group("/users")
 	// guestUsers.POST("", h.SignUp)

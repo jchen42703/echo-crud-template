@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/jchen42703/crud/internal/templates"
@@ -127,5 +128,46 @@ func Login(db *sql.DB, cache redis.Conn) echo.HandlerFunc {
 		c.SetCookie(sessionCookie)
 
 		return c.String(http.StatusOK, "logged in successfully")
+	}
+}
+
+type LogoutCredentials struct {
+	SessionToken string `json:"sessionToken"`
+}
+
+func Logout(cache redis.Conn) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		// Parse and decode the request body into a new `Credentials` instance
+		req := &LogoutCredentials{}
+		if err := c.Validate(req); err != nil {
+			return c.JSON(http.StatusUnprocessableEntity, templates.NewError(err))
+		}
+
+		err := json.NewDecoder(c.Request().Body).Decode(req)
+		if err != nil {
+			// If there is something wrong with the request body, return a 400 status
+			return c.JSON(http.StatusBadRequest, templates.NewError(err))
+		}
+
+		// deletes the session token
+		_, err = cache.Do("DEL", req.SessionToken)
+		if err != nil {
+			// If there is an error in setting the cache, return an internal server error
+			return c.JSON(http.StatusInternalServerError, templates.NewError(err))
+		}
+
+		// overwrites previous cookie
+		cookie := &http.Cookie{
+			Name:    "session_token",
+			Value:   "",
+			Path:    "/",
+			Expires: time.Unix(0, 0),
+
+			HttpOnly: true,
+		}
+
+		c.SetCookie(cookie)
+
+		return c.String(http.StatusOK, "logged out successfully")
 	}
 }
