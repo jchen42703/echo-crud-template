@@ -12,7 +12,7 @@ Echo CRUD Template with:
 - [x] Grouped Paths
 - [ ] Basic Authentication
   - [ ] Email Verification
-  - [x] Remember Me
+  - [x] Remember Me (Saves Username)
   - [x] Postgres
   - [x] Redis
 - [ ] Metrics with Prometheus

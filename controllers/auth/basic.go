@@ -118,14 +118,31 @@ func Login(db *sql.DB, cache redis.Conn) echo.HandlerFunc {
 		sessionCookie := &http.Cookie{
 			Name:     "session_token",
 			Value:    sessionToken,
+			Expires:  templates.DayFromNow(),
 			HttpOnly: true,
 		}
-
-		if req.RememberMe {
-			sessionCookie.Expires = templates.DayFromNow()
-		}
-
 		c.SetCookie(sessionCookie)
+
+		// Set username cookie
+		var usernameCookie *http.Cookie
+		if req.RememberMe {
+			// Saves the username in a cookie
+			usernameCookie = &http.Cookie{
+				Name:     "rememberMe",
+				Value:    req.Username,
+				Expires:  templates.MonthFromNow(),
+				HttpOnly: true,
+			}
+		} else {
+			// Expires the remember cookie if you don't want to be remembered
+			usernameCookie = &http.Cookie{
+				Name:     "rememberMe",
+				Value:    "",
+				Expires:  time.Unix(0, 0),
+				HttpOnly: true,
+			}
+		}
+		c.SetCookie(usernameCookie)
 
 		return c.String(http.StatusOK, "logged in successfully")
 	}
