@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
-	"time"
+	"strconv"
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/jchen42703/crud/internal/templates"
@@ -107,7 +107,7 @@ func Login(db *sql.DB, cache redis.Conn) echo.HandlerFunc {
 		// the session cookie is still in the cache, so technically the same session cookie is still usable.
 		// Alternative: When making the authentication middlware, change the cache TTL to something low and refresh
 		// the cache key when needed
-		_, err = cache.Do("SETEX", sessionToken, templates.DayInSeconds(), req.Username)
+		_, err = cache.Do("SETEX", sessionToken, strconv.Itoa(templates.DayInSeconds()), req.Username)
 		if err != nil {
 			// If there is an error in setting the cache, return an internal server error
 			return c.JSON(http.StatusInternalServerError, templates.NewError(err))
@@ -118,7 +118,7 @@ func Login(db *sql.DB, cache redis.Conn) echo.HandlerFunc {
 		sessionCookie := &http.Cookie{
 			Name:     "session_token",
 			Value:    sessionToken,
-			Expires:  templates.DayFromNow(),
+			MaxAge:   templates.DayInSeconds(),
 			HttpOnly: true,
 		}
 		c.SetCookie(sessionCookie)
@@ -130,7 +130,7 @@ func Login(db *sql.DB, cache redis.Conn) echo.HandlerFunc {
 			usernameCookie = &http.Cookie{
 				Name:     "rememberMe",
 				Value:    req.Username,
-				Expires:  templates.MonthFromNow(),
+				MaxAge:   templates.MonthInSeconds(),
 				HttpOnly: true,
 			}
 		} else {
@@ -138,7 +138,7 @@ func Login(db *sql.DB, cache redis.Conn) echo.HandlerFunc {
 			usernameCookie = &http.Cookie{
 				Name:     "rememberMe",
 				Value:    "",
-				Expires:  time.Unix(0, 0),
+				MaxAge:   0,
 				HttpOnly: true,
 			}
 		}
@@ -175,11 +175,10 @@ func Logout(cache redis.Conn) echo.HandlerFunc {
 
 		// overwrites previous cookie
 		cookie := &http.Cookie{
-			Name:    "session_token",
-			Value:   "",
-			Path:    "/",
-			Expires: time.Unix(0, 0),
-
+			Name:     "session_token",
+			Value:    "",
+			Path:     "/",
+			MaxAge:   0,
 			HttpOnly: true,
 		}
 
